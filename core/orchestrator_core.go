@@ -963,6 +963,103 @@ func (o *TridentOrchestrator) CloneVolume(volumeConfig *storage.VolumeConfig) (
 	return vol.ConstructExternal(), nil
 }
 
+func (o *TridentOrchestrator) CreateVolumeFromSnapshot(snapshotName string, volumeConfig *storage.VolumeConfig) (
+	externalVol *storage.VolumeExternal, err error) {
+
+	if o.bootstrapError != nil {
+		return nil, o.bootstrapError
+	}
+
+	var (
+		backend *storage.Backend
+		pool    *storage.Pool
+		vol     *storage.Volume
+	)
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	// Check if volume already exists
+	if _, ok := o.volumes[volumeConfig.Name]; ok {
+		return nil, fmt.Errorf("volume %s already exists", volumeConfig.Name)
+	}
+	volumeConfig.Version = config.OrchestratorAPIVersion
+
+	// Get the snapshot object from persistent store
+	snapshotExt, err := o.storeClient.GetSnapshot(snapshotName)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot %s does not exist", snapshotName)
+	}
+
+	// Get the protocol based on the specified access mode & protocol
+	protocol, err := o.getProtocol(volumeConfig.AccessMode, volumeConfig.Protocol)
+	if err != nil {
+		return nil, err
+	}
+	// Get the storage class
+	sc, ok := o.storageClasses[volumeConfig.StorageClass]
+	if !ok {
+		return nil, fmt.Errorf("unknown storage class: %s", volumeConfig.StorageClass)
+	}
+	// Get storage class pools and look for source snapshot pool
+	pools := sc.GetStoragePoolsForProtocol(protocol)
+	for _, sp := range pools {
+		if sp.Name != snapshotExt.Pool {
+			continue
+		}
+		pool = sp
+	}
+	if pool == nil {
+		return nil, fmt.Errorf("storage pool %s for the source snapshot not found: %s", snapshotExt.Pool, snapshotName)
+	}
+
+	// Get the backend of the source snapshot
+	if backend, ok = o.backends[snapshotExt.Backend]; !ok {
+		// Should never get here but just to be safe
+		return nil, notFoundError(fmt.Sprintf("backend %s for the source snapshot not found: %s",
+			snapshotExt.Snapshot.Backend, snapshotName))
+	}
+
+	// Add a transaction in case the operation must be rolled back later
+	volTxn := &persistentstore.VolumeTransaction{
+		Config: volumeConfig,
+		Op:     persistentstore.AddVolume,
+	}
+	if err = o.addVolumeTransaction(volTxn); err != nil {
+		return nil, err
+	}
+
+	// Recovery function in case of error
+	defer func() {
+		err = o.addVolumeCleanup(err, backend, vol, volTxn, volumeConfig)
+	}()
+
+	// Add volume to the backend of the snapshot
+	vol, err = backend.CreateVolumeFromSnapshot(&snapshotExt.Snapshot, volumeConfig, pool, sc.GetAttributes())
+	if err != nil {
+		log.WithFields(log.Fields{
+			"backend":        backend.Name,
+			"pool":           pool.Name,
+			"volume":         volumeConfig.Name,
+			"sourceSnapshot": snapshotName,
+			"error":          err,
+		}).Warn("Failed to create the volume from snapshot on this backend")
+		return nil, err
+	}
+	if vol.Config.Protocol == config.ProtocolAny {
+		vol.Config.Protocol = backend.GetProtocol()
+	}
+
+	// Add new volume to persistent store
+	err = o.storeClient.AddVolume(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update internal cache and return external form of the new volume
+	o.volumes[volumeConfig.Name] = vol
+	return vol.ConstructExternal(), nil
+}
+
 // addVolumeTransaction is called from the volume create, clone, and resize
 // methods to save a record of the operation in case it fails and must be
 // cleaned up later.

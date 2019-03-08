@@ -343,6 +343,26 @@ func (d *NASQtreeStorageDriver) CreateClone(volConfig *storage.VolumeConfig) err
 	return errors.New("cloning with the ONTAP NAS Economy driver is not supported")
 }
 
+// Create a volume with the specified options from a snapshot source
+func (d *NASQtreeStorageDriver) CreateVolumeFromSnapshot(
+	snapshot *storage.Snapshot, volConfig *storage.VolumeConfig,
+	storagePool *storage.Pool, volAttributes map[string]sa.Request,
+) error {
+
+	if d.Config.DebugTraceFlags["method"] {
+		fields := log.Fields{
+			"Method":         "CreateVolumeFromSnapshot",
+			"Type":           "NASQtreeStorageDriver",
+			"name":           volConfig.InternalName,
+			"sourceSnapshot": snapshot.Name,
+		}
+		log.WithFields(fields).Debug(">>>> CreateVolumeFromSnapshot")
+		defer log.WithFields(fields).Debug("<<<< CreateVolumeFromSnapshot")
+	}
+
+	return errors.New("creating volume from snapshot with ONTAP NAS Economy driver is not supported")
+}
+
 // Destroy the volume
 func (d *NASQtreeStorageDriver) Destroy(name string) error {
 

@@ -267,6 +267,26 @@ func (d *NASFlexGroupStorageDriver) CreateClone(volConfig *storage.VolumeConfig)
 	return errors.New("clones are not supported for FlexGroups")
 }
 
+// Create a volume with the specified options from a snapshot source
+func (d *NASFlexGroupStorageDriver) CreateVolumeFromSnapshot(
+	snapshot *storage.Snapshot, volConfig *storage.VolumeConfig,
+	storagePool *storage.Pool, volAttributes map[string]sa.Request,
+) error {
+
+	if d.Config.DebugTraceFlags["method"] {
+		fields := log.Fields{
+			"Method":         "CreateVolumeFromSnapshot",
+			"Type":           "NASFlexGroupStorageDriver",
+			"name":           volConfig.InternalName,
+			"sourceSnapshot": snapshot.Name,
+		}
+		log.WithFields(fields).Debug(">>>> CreateVolumeFromSnapshot")
+		defer log.WithFields(fields).Debug("<<<< CreateVolumeFromSnapshot")
+	}
+
+	return errors.New("creating volume from snapshot with FlexGroups is not supported")
+}
+
 // Destroy the volume
 func (d *NASFlexGroupStorageDriver) Destroy(name string) error {
 

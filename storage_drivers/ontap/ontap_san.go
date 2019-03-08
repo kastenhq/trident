@@ -361,6 +361,26 @@ func (d *SANStorageDriver) CreateClone(volConfig *storage.VolumeConfig) error {
 	return CreateOntapClone(name, source, snapshot, split, &d.Config, d.API)
 }
 
+// Create a volume with the specified options from a snapshot source
+func (d *SANStorageDriver) CreateVolumeFromSnapshot(
+	snapshot *storage.Snapshot, volConfig *storage.VolumeConfig,
+	storagePool *storage.Pool, volAttributes map[string]sa.Request,
+) error {
+
+	if d.Config.DebugTraceFlags["method"] {
+		fields := log.Fields{
+			"Method":         "CreateVolumeFromSnapshot",
+			"Type":           "SANStorageDriver",
+			"name":           volConfig.InternalName,
+			"sourceSnapshot": snapshot.Name,
+		}
+		log.WithFields(fields).Debug(">>>> CreateVolumeFromSnapshot")
+		defer log.WithFields(fields).Debug("<<<< CreateVolumeFromSnapshot")
+	}
+
+	return errors.New("creating volume from snapshot with ONTAP SAN storage driver is not implemented")
+}
+
 // Destroy the requested (volume,lun) storage tuple
 func (d *SANStorageDriver) Destroy(name string) error {
 

@@ -362,6 +362,26 @@ func (d *SANStorageDriver) Create(
 	return nil
 }
 
+// Create a volume with the specified options from a snapshot source
+func (d *SANStorageDriver) CreateVolumeFromSnapshot(
+	snapshot *storage.Snapshot, volConfig *storage.VolumeConfig,
+	storagePool *storage.Pool, volAttributes map[string]sa.Request,
+) error {
+
+	if d.Config.DebugTraceFlags["method"] {
+		fields := log.Fields{
+			"Method":         "CreateVolumeFromSnapshot",
+			"Type":           "SANStorageDriver",
+			"name":           volConfig.InternalName,
+			"sourceSnapshot": snapshot.Name,
+		}
+		log.WithFields(fields).Debug(">>>> CreateVolumeFromSnapshot")
+		defer log.WithFields(fields).Debug("<<<< CreateVolumeFromSnapshot")
+	}
+
+	return errors.New("creating volume from snapshot with E-Series is not supported")
+}
+
 // Destroy is called by Docker to delete a container volume.
 func (d *SANStorageDriver) Destroy(name string) error {
 
